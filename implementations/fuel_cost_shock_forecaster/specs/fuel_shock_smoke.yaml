@@ -1,0 +1,25 @@
+# Fuel Cost-Shock Smoke Spec — binary reference, 3 origins
+#
+# Compact binary (Brier-scored) reference for pipeline smoke-testing: does the
+# Forecaster Agent + News Agent + evaluation harness run end to end without
+# burning tokens on a full backtest. Mirrors boc_rate_decisions/specs/boc_rate_cut_smoke.yaml.
+
+description: >-
+  Smoke-sized binary cost-shock backtest: 3 monthly origins in 2025, scored
+  against the derived fuel_cost_shock_event_21d series with Brier score.
+
+task:
+  task_id: fuel_cost_shock_next_month
+  target_series_id: fuel_cost_shock_event_21d
+  horizons: [21]
+  frequency: B
+  payload_type: binary
+  description: >-
+    Will the jet-fuel proxy (NY Harbor ULSD futures, HO=F) close more than 10%
+    higher than the forecast origin price at the end of 21 trading days
+    (~1 month)?
+
+start: "2025-01-06"
+end: "2025-03-03"
+stride: 21
+warmup: 252

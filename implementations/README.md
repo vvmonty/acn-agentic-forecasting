@@ -24,6 +24,8 @@ implementations/
 |   `-- specs/                #     backtest and eval YAML
 |-- boc_rate_decisions/       # 4 · Discrete-event reference: BoC cut/hold/hike direction
 |   `-- specs/                #     direction + binary backtest / eval / smoke YAML
+|-- fuel_cost_shock_forecaster/ # 5 · Aviation jet-fuel cost-shock bootcamp project (multi-agent)
+|   `-- specs/                #     binary cost-shock backtest / smoke YAML
 |-- tests/                    # tests for implementation-specific helper modules
 `-- pyproject.toml            # local workspace packaging
 ```

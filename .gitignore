@@ -56,3 +56,9 @@ implementations/**/data/
 data/yfinance/
 
 .claude/
+
+# Local project notes, not shared repo documentation
+/CLAUDE.md
+
+# EIA API reference dropped in locally, not part of the tracked repo
+/eia-api-swagger.yaml
