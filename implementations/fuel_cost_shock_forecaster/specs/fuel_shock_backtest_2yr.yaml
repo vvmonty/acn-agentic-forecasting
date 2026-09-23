@@ -1,0 +1,36 @@
+# Fuel Cost-Shock 2-Year Backtest Spec — 24 origins across 2025-2026
+#
+# Extends fuel_shock_backtest.yaml's single-year window to two years so the
+# leaderboard/calibration comparison isn't decided by just 2 shock events.
+# Stride is ~18 business days (vs. 21 for the monthly spec) so 24 origins fit
+# inside the window that has fully resolved by "today" -- the 21-trading-day
+# outcome for the last origin below still resolves before the current date,
+# so no origins are skipped for lack of a resolved outcome.
+#
+# Origin count : 24 (roughly every 3.6 weeks, Jan 2025 - Aug 2026)
+# Warmup       : 252 trading days (~1 year) of historical prices
+
+spec_id: fuel_shock_backtest_2yr
+
+description: >-
+  Two-year rolling backtest (2025-2026) for the fuel cost-shock binary task
+  (jet-fuel proxy > 10% rise over 21 trading days), scored with Brier score.
+  24 origins strided ~18 business days apart -- doubles the origin count of
+  fuel_shock_backtest.yaml so the agent-vs-baseline comparison rests on more
+  than the 2 shock events observed in the single-year 2025 window.
+
+task:
+  task_id: fuel_cost_shock_next_month
+  target_series_id: fuel_cost_shock_event_21d
+  horizons: [21]
+  frequency: B
+  payload_type: binary
+  description: >-
+    Will the jet-fuel proxy (NY Harbor ULSD futures, HO=F) close more than 10%
+    higher than the forecast origin price at the end of 21 trading days
+    (~1 month)?
+
+start: "2025-01-06"
+end: "2026-08-07"
+stride: 18
+warmup: 252

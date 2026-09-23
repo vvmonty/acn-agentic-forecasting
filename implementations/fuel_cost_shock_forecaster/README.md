@@ -92,19 +92,31 @@ oil / diesel in industry hedging desks), consistent with the doc's own
 - Percentage-threshold (not fixed-dollar) shock definition
 - Two-agent-role split (news vs. forecaster) documented explicitly, vs. WTI's single analyst identity with search as an internal capability
 
-## Baselines (doc section 7) — not yet implemented
+## Baselines (doc section 7) — partially implemented
 
-`aieng.forecasting.methods` currently has naive baselines only. GARCH and
-logistic regression are **not** in the reusable package yet — these need to
-be added before the backtest leaderboard in `specs/fuel_shock_backtest.yaml`
-can include them.
+Section 6 of the notebook runs a multi-origin backtest (`specs/fuel_shock_smoke.yaml` by
+default; swap to `specs/fuel_shock_backtest.yaml` for the full 2025 run, or
+`specs/fuel_shock_backtest_2yr.yaml` for a 24-origin run spanning Jan 2025 - Aug 2026) and
+builds a Brier-score leaderboard plus a reliability diagram, comparing the Forecaster Agent
+against `HistoricalFrequencyPredictor` (the floor baseline). The single-year spec only
+covers 2 realised shock events, which is too few to distinguish agent skill from noise; the
+2-year spec doubles the origin count (~18-business-day stride instead of ~21, to fit 24
+origins in the window that has fully resolved by "today") without touching baseline
+implementations. `aieng.forecasting.methods` still has naive baselines only — GARCH and
+logistic regression are **not** in the reusable package yet, so the leaderboard is
+agent-vs-floor-baseline only until those are added.
+
+The historical case study `specs/fuel_shock_feb2025.yaml` evaluates one explicit origin:
+February 3, 2025. The prompt is cut off at that date, while the 21-business-day event
+resolves on March 4, 2025. The agent sees the underlying `HO=F` price history; the derived
+`fuel_cost_shock_event_21d` series is used only as the binary scoring target.
 
 ## Layout
 
 ```
 fuel_cost_shock_forecaster/
 ├── 01_fuel_shock_multi_agent.ipynb   # everything: data service, news agent, forecaster agent, task specs, demo run
-└── specs/                             # YAML backtest + smoke specs (data/config, not code)
+└── specs/                             # YAML backtest + case-study specs (data/config, not code)
 ```
 
 ## Setup
@@ -121,8 +133,10 @@ before pushing changes.
 
 1. Add EIA inventory/stocks series once the correct `petroleum/stoc/...`
    series id is verified against `eia-api-swagger.yaml`.
-2. Add GARCH and logistic-regression baselines for the backtest leaderboard.
-3. Run the notebook end to end against `specs/fuel_shock_smoke.yaml` as a
-   smoke test before the full backtest.
+2. Add GARCH and logistic-regression baselines (new `Predictor` subclasses
+   under `aieng.forecasting.methods.baselines/`) and append them to the
+   `backtest_predictors` list in notebook section 6.
+3. Run notebook section 6 against `specs/fuel_shock_backtest.yaml` (the full
+   2025 monthly backtest) once the additional baselines are in place.
 4. Optional: self-consistency (median over N pipeline runs) per the doc's
    stretch goal — no Adjudicator agent required for this.

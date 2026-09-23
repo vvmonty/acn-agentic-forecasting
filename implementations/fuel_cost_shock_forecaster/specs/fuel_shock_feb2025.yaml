@@ -1,0 +1,28 @@
+# February 3, 2025 historical shock case
+#
+# The agent receives only information available at the Feb 3 origin. The
+# derived event series resolves 21 business days later, on March 4, 2025.
+
+description: >-
+  Historical case study of the February 3, 2025 fuel cost-shock forecast.
+  The information set includes the February 1 announcement of proposed 25%
+  tariffs on Canada and Mexico, Canada's role in US crude supply, steady OPEC+
+  production cuts, and the HO=F price near $2.40/gal. The outcome is resolved
+  against the derived >10% HO=F increase over the next 21 trading days.
+
+task:
+  task_id: fuel_cost_shock_next_month
+  target_series_id: fuel_cost_shock_event_21d
+  horizons: [21]
+  frequency: B
+  payload_type: binary
+  description: >-
+    Will the jet-fuel proxy (NY Harbor ULSD futures, HO=F) close more than 10%
+    higher than the February 3, 2025 origin price at the end of 21 trading days?
+
+start: "2025-02-03"
+end: "2025-02-04"
+origin_dates:
+  - "2025-02-03"
+stride: 1
+warmup: 252
