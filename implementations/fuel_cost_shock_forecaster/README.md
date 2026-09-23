@@ -5,11 +5,19 @@ Discrete-event forecasting for jet-fuel-proxy price shocks, adapted from the
 implementation. Full objectives and requirements:
 [`../../fuel-cost-shock-forecaster/Fuel_Cost_Shock_Forecaster_Objectives_and_Requirements.md`](../../fuel-cost-shock-forecaster/Fuel_Cost_Shock_Forecaster_Objectives_and_Requirements.md).
 
-**Everything lives in [`01_fuel_shock_multi_agent.ipynb`](01_fuel_shock_multi_agent.ipynb).**
+**The multi-agent pipeline lives in [`01_fuel_shock_multi_agent.ipynb`](01_fuel_shock_multi_agent.ipynb).**
 This is a notebook-first bootcamp project — the Commodity-Data ingestion, the
 Geopolitical/News Agent, the Forecaster Agent, and the task specs are all
 defined inline in that notebook, not split across importable `.py` modules.
 Run it top to bottom.
+
+**The backtest actually runs in [`02_fuel_shock_backtest_eval.ipynb`](02_fuel_shock_backtest_eval.ipynb).**
+`01_...` builds and demos the pipeline at a single live origin only; it never
+calls the evaluation harness. `02_...` re-declares the setup it needs from
+`01_...` (same notebook-only convention — no shared `.py` module between the
+two notebooks) and runs the real backtest against `specs/fuel_shock_smoke.yaml`
+and `specs/fuel_shock_backtest.yaml`, with the GARCH and logistic-regression
+baselines described below.
 
 ## Targets
 
@@ -92,19 +100,59 @@ oil / diesel in industry hedging desks), consistent with the doc's own
 - Percentage-threshold (not fixed-dollar) shock definition
 - Two-agent-role split (news vs. forecaster) documented explicitly, vs. WTI's single analyst identity with search as an internal capability
 
-## Baselines (doc section 7) — not yet implemented
+## Baselines (doc section 7)
 
-`aieng.forecasting.methods` currently has naive baselines only. GARCH and
-logistic regression are **not** in the reusable package yet — these need to
-be added before the backtest leaderboard in `specs/fuel_shock_backtest.yaml`
-can include them.
+`GARCHPredictor` and `LogisticRegressionBaseline` have been added to
+`aieng.forecasting.methods.baselines` (alongside the existing
+`HistoricalFrequencyPredictor`), so the backtest leaderboard in
+`02_fuel_shock_backtest_eval.ipynb` compares the Forecaster Agent against all
+three:
+
+- `HistoricalFrequencyPredictor` — climatological base rate (unchanged).
+- `GARCHPredictor` — constant-mean GARCH(1,1) fit on jet-fuel proxy
+  log-returns at every origin; converts the fitted drift/variance into
+  P(21-day return > 10%) under a Gaussian cumulative-return assumption. Falls
+  back to plain historical mean/variance if the GARCH fit doesn't converge.
+  Generic (takes `price_series_id`/`threshold_pct`, not fuel-specific).
+- `LogisticRegressionBaseline` — logistic regression refit at every origin
+  on leak-safe trailing-return/volatility features (jet-fuel proxy momentum +
+  volatility, plus WTI and USD-index trailing returns as covariates). Generic
+  (takes `price_series_id`/`covariate_series_ids`), modelled after
+  `boc_rate_decisions.predictors.BoCLogisticPredictor`'s fit-at-origin design.
+
+Both are added to `aieng-forecasting`'s `numerical` optional-dependency group
+(`arch`, `scikit-learn`) in `pyproject.toml`.
+
+## Backtest window and the LLM knowledge-cutoff constraint
+
+Both configured models (`gemini-3.1-flash-lite-preview`,
+`gemini-3.5-flash`) have a **~January 2025** knowledge cutoff. Backtesting
+before that date risks the Forecaster Agent's binary shock probability
+reflecting *memorized* outcomes rather than genuine forecasting — a
+false-positive on accuracy. `specs/fuel_shock_backtest.yaml` and
+`specs/fuel_shock_smoke.yaml` are windowed to start **2025-06-02** (a ~5
+month safety margin past the cutoff) and (for the full backtest) end
+**2026-08-03** (so every origin's 21-trading-day outcome is fully resolved
+before "today"). See each spec file's header comment for the full rationale.
+
+On top of the window choice, the News Agent's `search_web` tool has its own
+code-level temporal fence — independent of the window and not just a prompt
+instruction — that prevents it from grounding on post-origin news during a
+backtest (`aieng-forecasting/aieng/forecasting/methods/agentic/agent_factory.py`,
+`search_web()`): the harness seeds the ADK session with each backtest
+origin's `as_of` date, that value overrides anything the LLM itself passes as
+`cutoff_date`, and every search result is checked by an independent
+leakage-verifier model before being returned.
+`02_fuel_shock_backtest_eval.ipynb` §8 shows how to watch this fire during a
+run.
 
 ## Layout
 
 ```
 fuel_cost_shock_forecaster/
-├── 01_fuel_shock_multi_agent.ipynb   # everything: data service, news agent, forecaster agent, task specs, demo run
-└── specs/                             # YAML backtest + smoke specs (data/config, not code)
+├── 01_fuel_shock_multi_agent.ipynb        # data service, news agent, forecaster agent, task specs, live demo
+├── 02_fuel_shock_backtest_eval.ipynb      # re-declares the pipeline setup and runs the real backtest + leaderboard
+└── specs/                                  # YAML backtest + smoke specs (data/config, not code)
 ```
 
 ## Setup
@@ -121,8 +169,14 @@ before pushing changes.
 
 1. Add EIA inventory/stocks series once the correct `petroleum/stoc/...`
    series id is verified against `eia-api-swagger.yaml`.
-2. Add GARCH and logistic-regression baselines for the backtest leaderboard.
-3. Run the notebook end to end against `specs/fuel_shock_smoke.yaml` as a
-   smoke test before the full backtest.
+2. Run `02_fuel_shock_backtest_eval.ipynb` end to end (smoke spec, then the
+   full backtest) with real API keys to get an actual leaderboard, not just
+   the reference implementation.
+3. Optional: move `fuel_shock_backtest.yaml` to an `EvalSpec` with an
+   `EvalTracker`-enforced `max_runs`, mirroring
+   `boc_rate_decisions/02_boc_rate_direction_experiment.ipynb`'s protected
+   post-2025 eval — since the whole window here is already post-cutoff,
+   repeated re-runs while iterating on the agent are themselves a mild
+   overfitting risk that a run budget would close off.
 4. Optional: self-consistency (median over N pipeline runs) per the doc's
    stretch goal — no Adjudicator agent required for this.

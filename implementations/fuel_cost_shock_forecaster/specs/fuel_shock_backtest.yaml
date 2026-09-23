@@ -1,18 +1,30 @@
-# Fuel Cost-Shock Backtest Spec — 2025 monthly rolling backtest
+# Fuel Cost-Shock Backtest Spec — post-cutoff rolling backtest
 #
-# Monthly-strided origins across 2025, scored against the derived binary
-# cost-shock event series (> 10% rise over the next 21 trading days).
+# Monthly-strided origins from mid-2025 through mid-2026, scored against the
+# derived binary cost-shock event series (> 10% rise over the next 21 trading
+# days).
 #
-# Origin count : ~12 (monthly in 2025)
+# Window rationale: both configured models (gemini-3.1-flash-lite-preview,
+# gemini-3.5-flash) have a ~January 2025 knowledge cutoff. The window below
+# starts 2025-06-02 (a ~5 month safety margin past that cutoff, since a
+# preview model's stated cutoff is itself approximate) and ends 2026-08-03
+# (so the last origin's 21-trading-day outcome is fully resolved before
+# today). Every origin in this window is provably after the LLM's training
+# cutoff, so a forecast that beats the naive baselines here reflects genuine
+# forecasting skill rather than memorized outcomes. See README.md.
+#
+# Origin count : ~14 (monthly, 2025-06 through 2026-07)
 # Warmup       : 252 trading days (~1 year) of historical prices
 
 spec_id: fuel_shock_backtest
 
 description: >-
-  Monthly rolling backtest in 2025 for the fuel cost-shock binary task
-  (jet-fuel proxy > 10% rise over 21 trading days), scored with Brier score.
-  Used to compare the Forecaster Agent against baselines (naive base rate,
-  random-walk, GARCH, logistic regression — see README.md for baseline status).
+  Monthly rolling backtest from June 2025 through August 2026 for the fuel
+  cost-shock binary task (jet-fuel proxy > 10% rise over 21 trading days),
+  scored with Brier score. Every origin postdates the ~January 2025 LLM
+  knowledge cutoff. Used to compare the Forecaster Agent against baselines
+  (naive base rate, GARCH, logistic regression — see README.md for baseline
+  status).
 
 task:
   task_id: fuel_cost_shock_next_month
@@ -25,7 +37,7 @@ task:
     higher than the forecast origin price at the end of 21 trading days
     (~1 month)?
 
-start: "2025-01-06"
-end: "2025-12-01"
+start: "2025-06-02"
+end: "2026-08-03"
 stride: 21
 warmup: 252
