@@ -20,13 +20,15 @@ from __future__ import annotations
 
 
 #: Default / lite model — fast and cheap; the project-wide default.
-LITE_MODEL = "gemini-3.1-flash-lite-preview"
+# LITE_MODEL = "gemini-3.1-flash-lite-preview"
+LITE_MODEL = "gemini-3.5-flash" 
 
 #: Advanced model — higher capability; adaptive-agent and production runs.
-ADVANCED_MODEL = "gemini-3.5-flash"
+# ADVANCED_MODEL = "gemini-3.5-flash"
+ADVANCED_MODEL = "gemini-3.1-pro-preview"
 
 #: Alias for the project-wide default model (the lite model).
+#DEFAULT_MODEL = LITE_MODEL
 DEFAULT_MODEL = LITE_MODEL
-
 
 __all__ = ["ADVANCED_MODEL", "DEFAULT_MODEL", "LITE_MODEL"]

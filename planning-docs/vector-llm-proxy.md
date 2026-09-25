@@ -216,3 +216,45 @@ Both affected **all** LLM-Process predictors (continuous, binary, categorical) a
 ### Takeaway
 
 The proxy's accepted parameter vocabulary and JSON-schema dialect can change under you; prefer the **provider default (`None`)** for `reasoning_effort` unless a model is known to need a specific budget, and keep response schemas to the lowest-common-denominator JSON-Schema the Gemini `response_schema` path accepts (no `additionalProperties`).
+
+---
+
+## History: `gemini-3.5-flash` rejects a thinking budget of 0 (September 2026)
+
+### What happened
+
+The `search_web` tool's independent leakage verifier (`_verify_no_leakage` in
+`agent_factory.py`), which defaults to `verifier_model=ADVANCED_MODEL`
+(`gemini-3.5-flash`), started failing every call through the proxy with:
+
+> `litellm.BadRequestError: ... "message": "Budget 0 is invalid. This model only works in thinking mode."`
+
+### Root cause
+
+Unlike the lite model, `gemini-3.5-flash` has no non-thinking mode — it always
+requires a non-zero thinking budget. Neither `_verify_no_leakage` nor
+`_do_search` ever set `reasoning_effort`/`extra_body`, so when routed through
+the proxy the request carried no thinking directive at all and the proxy
+defaulted to a thinking budget of `0`, which this model rejects outright
+(same param-stripping mechanism as the "`reasoning_effort` silently dropped"
+issue above — `drop_params=True` strips it from the OpenAI-compatible path
+because `gemini-3.5-flash` doesn't look like an o1/o3 model).
+
+### Fix
+
+`_verify_no_leakage` now injects `reasoning_effort="minimal"` via `extra_body`
+whenever `openai_base_url` is set, following the same `extra_body` workaround
+used in `_client.py`. `_do_search` was left unchanged: its `search_model`
+defaults to `LITE_MODEL`, which intentionally omits `reasoning_effort`
+(provider default) per the takeaway above.
+
+### Takeaway
+
+The confirmed `reasoning_effort` vocabulary above (`None`/`minimal`/`medium`/`high`)
+was only verified against `gemini-3.1-flash-lite-preview`. Whether
+`gemini-3.5-flash` accepts the same values through the proxy is not yet
+confirmed empirically — treat `"minimal"` as a starting point to verify once
+quota allows, not a settled proxy contract. If a model is thinking-only
+(no non-thinking mode), any code path that calls it directly via
+`litellm.acompletion` on the proxy must set an explicit non-zero
+`reasoning_effort`; omitting the field is not a safe default for those models.

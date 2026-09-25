@@ -172,7 +172,10 @@ class ContextRetrievalConfig(BaseModel):
     verifier_model : str, default=ADVANCED_MODEL (``"gemini-3.5-flash"``)
         Model used for the independent leakage-verification call. Defaults
         to a different model than ``search_model`` so the verifier does not
-        share the same blind spot as the call it's checking.
+        share the same blind spot as the call it's checking. This model has
+        no non-thinking mode, so :func:`_verify_no_leakage` explicitly sets
+        ``reasoning_effort`` on the proxy path (see
+        ``planning-docs/vector-llm-proxy.md``).
     verifier_max_attempts : int, default=3
         Maximum number of search-then-verify attempts before giving up and
         returning the ``[SEARCH_VERIFICATION_FAILED]`` sentinel.
@@ -379,6 +382,12 @@ async def _verify_no_leakage(
     that caused the leak in the first place. Never raises on a malformed
     verifier response — a parse failure is treated as a non-clean verdict so
     it consumes a retry attempt like any other rejection.
+
+    ``verifier_model`` defaults to ``ADVANCED_MODEL`` (``gemini-3.5-flash``),
+    which has no non-thinking mode. When routed through the proxy, this call
+    sets ``reasoning_effort`` via ``extra_body`` so the proxy doesn't default
+    to a thinking budget of 0 (which that model rejects outright — see
+    ``planning-docs/vector-llm-proxy.md``).
     """
     import litellm  # noqa: PLC0415
     from aieng.forecasting.langfuse_tracing import langfuse_generation  # noqa: PLC0415
@@ -401,18 +410,28 @@ async def _verify_no_leakage(
         input={"messages": messages},
         metadata=trace_metadata,
     ) as generation:
-        resp = await litellm.acompletion(
-            model=model,
-            api_base=openai_base_url,
-            api_key=openai_api_key,
-            messages=messages,
-            response_format=make_json_schema_response_format(
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "api_base": openai_base_url,
+            "api_key": openai_api_key,
+            "messages": messages,
+            "response_format": make_json_schema_response_format(
                 "LeakageVerification", _build_leakage_verification_schema()
             ),
-            temperature=0.0,
-            max_tokens=2048,
-            timeout=60.0,
-        )
+            "temperature": 0.0,
+            "max_tokens": 2048,
+            "timeout": 60.0,
+        }
+        if openai_base_url:
+            # See the "reasoning_effort silently dropped" note in
+            # planning-docs/vector-llm-proxy.md: LiteLLM's drop_params strips
+            # reasoning_effort for proxy-routed models it doesn't recognise as
+            # thinking-capable, which leaves the proxy defaulting to a thinking
+            # budget of 0 — fatal for gemini-3.5-flash, which has no non-thinking
+            # mode. extra_body bypasses the param filter.
+            kwargs.setdefault("extra_body", {})["reasoning_effort"] = "minimal"
+            kwargs["drop_params"] = True
+        resp = await litellm.acompletion(**kwargs)
         raw = resp.choices[0].message.content or "{}"
         try:
             verdict = _LeakageVerification.model_validate(json.loads(strip_markdown_fence(raw)))
