@@ -1,0 +1,34 @@
+# Fuel Trajectory 2-Year Backtest Spec — 24 origins across 2025-2026
+#
+# Continuous counterpart to fuel_shock_backtest_2yr.yaml: same origin
+# schedule (24 origins, ~18-business-day stride, Jan 2025 - Aug 2026) so the
+# two tasks' backtest windows line up for side-by-side notebook narration,
+# even though the agentic forecaster has not yet been backtested against
+# this task at this cadence (see notebook §7 fallback messaging).
+#
+# Origin count : 24 (roughly every 3.6 weeks, Jan 2025 - Aug 2026)
+# Warmup       : 252 trading days (~1 year) of historical prices
+# Horizons     : 5, 10, 21 trading days -- scored with CRPS per horizon
+
+spec_id: fuel_trajectory_backtest_2yr
+
+description: >-
+  Two-year rolling backtest (2025-2026) for the fuel trajectory continuous
+  task (jet-fuel proxy point forecast at 5/10/21 trading days), scored with
+  CRPS. Origin schedule matches fuel_shock_backtest_2yr.yaml (24 origins,
+  ~18-business-day stride) for cross-task comparability in notebook §7.
+
+task:
+  task_id: fuel_trajectory_next_month
+  target_series_id: jet_fuel_proxy_price
+  horizons: [5, 10, 21]
+  frequency: B
+  payload_type: continuous
+  description: >-
+    Jet-fuel proxy (NY Harbor ULSD futures, HO=F) price point forecast at
+    5, 10, and 21 trading days ahead, with a full quantile distribution.
+
+start: "2025-01-06"
+end: "2026-08-07"
+stride: 18
+warmup: 252

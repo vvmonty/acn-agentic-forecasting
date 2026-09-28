@@ -1,0 +1,30 @@
+# Fuel Cost-Shock Backtest Spec — 2025 monthly rolling backtest
+#
+# Monthly-strided origins across 2025, scored against the derived binary
+# cost-shock event series (> 10% rise over the next 21 trading days).
+#
+# Origin count : ~12 (monthly in 2025)
+# Warmup       : 252 trading days (~1 year) of historical prices
+
+spec_id: fuel_shock_backtest_1yr_all
+
+description: >-
+  Monthly rolling backtest Oct 2025 - Aug 2026, clean window for all model
+  versions (v1-v5). Start is after gpt-5.4 training cutoff (Aug 31 2025);
+  end ensures 21-day resolution window has closed by today (Sep 2026).
+
+task:
+  task_id: fuel_cost_shock_next_month
+  target_series_id: fuel_cost_shock_event_21d
+  horizons: [21]
+  frequency: B
+  payload_type: binary
+  description: >-
+    Will the jet-fuel proxy (NY Harbor ULSD futures, HO=F) close more than 10%
+    higher than the forecast origin price at the end of 21 trading days
+    (~1 month)?
+
+start: "2025-10-01"
+end: "2026-08-01"
+stride: 21
+warmup: 252
